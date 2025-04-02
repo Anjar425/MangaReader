@@ -1,0 +1,516 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  List,
+  Moon,
+  Settings,
+  Sun,
+  X,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
+import { cn } from "@/lib/utils"
+
+interface Page {
+  image: string
+}
+
+interface Manga {
+  id: string
+  title: string
+  number: number
+  pages: Page[]
+  nextChapter: string | null
+  prevChapter: string | null
+}
+
+interface ArchiveDetail {
+  id: number
+  title: string
+}
+
+type ReadingMode = "scroll" | "pagination"
+
+export default function ChapterReader() {
+  const [darkMode, setDarkMode] = useState(true)
+  const [readingMode, setReadingMode] = useState<ReadingMode>("scroll")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [zoomLevel, setZoomLevel] = useState(100)
+  const [showControls, setShowControls] = useState(true)
+  const [manga, setManga] = useState<Manga | undefined>()
+  const [mangaTitle, setMangaTitle] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [archive, setArchive] = useState<ArchiveDetail[]>([])
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isChapterListOpen, setIsChapterListOpen] = useState(false)
+
+  // Use Next.js App Router hooks instead of Pages Router
+  const params = useParams()
+  const detail = params?.detail as string
+  const id = params?.id as string
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!detail || !id) return
+
+      try {
+        // Using a try-catch to handle potential IPC errors
+        const getMangaInfo = async () => {
+          try {
+            return await window.ipc.getMangaInfo(detail)
+          } catch (error) {
+            console.error("Error in getMangaInfo:", error)
+            return { series: "Unknown Series" }
+          }
+        }
+
+        const getAllArchives = async () => {
+          try {
+            return await window.ipc.getAllArchiveTitleById(detail)
+          } catch (error) {
+            console.error("Error in getAllArchiveTitleById:", error)
+            return []
+          }
+        }
+
+        const getImages = async () => {
+          try {
+            return await window.ipc.getImagesFromArchive(detail, id)
+          } catch (error) {
+            console.error("Error in getImagesFromArchive:", error)
+            return []
+          }
+        }
+
+        const { series } = (await getMangaInfo()) || { series: detail }
+        setMangaTitle(series)
+
+        const archives = await getAllArchives()
+        setArchive(archives)
+
+        const currentId = Number(id)
+        const currentArchive = archives.find((item) => item.id === currentId)
+
+        if (!currentArchive) {
+          console.error("ID not found in archive list.")
+          setIsLoading(false)
+          return
+        }
+
+        const title = currentArchive.title
+        const nextChapter = archives.some((item) => item.id === currentId + 1) ? String(currentId + 1) : null
+        const prevChapter = archives.some((item) => item.id === currentId - 1) ? String(currentId - 1) : null
+
+        const imageData = await getImages()
+
+        // Convert imageData to pages format
+        const pages = imageData.map((image) => ({
+          image: image,
+        }))
+
+        setManga({
+          id: String(id),
+          title: title,
+          number: currentId,
+          pages: pages || [],
+          nextChapter,
+          prevChapter,
+        })
+
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Error fetching manga info:", error)
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [detail, id])
+
+  // Toggle dark mode
+  const toggleDarkMode = () => setDarkMode(!darkMode)
+
+  // Toggle reading mode
+  const toggleReadingMode = () => {
+    setReadingMode((prev) => (prev === "scroll" ? "pagination" : "scroll"))
+  }
+
+  // Navigate to next page
+  const nextPage = () => {
+    if (!manga) return
+
+    if (currentPage < manga.pages.length) {
+      setCurrentPage((prev) => prev + 1)
+    } else if (manga.nextChapter) {
+      // Navigate to next chapter handled by Link component
+      setCurrentPage(1)
+    }
+  }
+
+  // Navigate to previous page
+  const prevPage = () => {
+    if (!manga) return
+
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1)
+    } else if (manga.prevChapter) {
+      // Navigate to previous chapter handled by Link component
+      setCurrentPage(manga?.pages.length || 1)
+    }
+  }
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (readingMode === "pagination") {
+        if (e.key === "ArrowRight" || e.key === " ") {
+          nextPage()
+        } else if (e.key === "ArrowLeft") {
+          prevPage()
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [readingMode, currentPage, manga])
+
+  // Auto-hide controls after 3 seconds of inactivity
+  useEffect(() => {
+    if (!showControls) return
+
+    const timer = setTimeout(() => {
+      setShowControls(false)
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [showControls])
+
+  // Show controls on mouse movement
+  const handleMouseMove = () => {
+    setShowControls(true)
+  }
+
+  const toggleSettings = () => {
+    if (isChapterListOpen) {
+      setIsChapterListOpen(false)
+    }
+    setIsSettingsOpen(!isSettingsOpen)
+  }
+
+  const toggleChapterList = () => {
+    if (isSettingsOpen) {
+      setIsSettingsOpen(false)
+    }
+    setIsChapterListOpen(!isChapterListOpen)
+  }
+
+  // Fallback for when manga data is not available
+  if (!isLoading && !manga) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-xl font-semibold">Failed to load manga data</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn("min-h-screen flex flex-col h-screen overflow-hidden", darkMode ? "dark" : "")} onMouseMove={handleMouseMove}>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset className="flex-1 flex flex-col overflow-hidden">
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-xl font-semibold">Loading...</p>
+            </div>
+          ) : (
+            <>
+              {/* Header - always visible */}
+              <header className="sticky top-0 z-10 border-b bg-[#2f2e2e] rounded-md backdrop-blur supports-[backdrop-filter]:bg-[#2f2e2e]/60">
+                <div className="flex h-16 items-center justify-between px-4 md:px-6">
+                  <div className="flex items-center gap-4">
+                    <SidebarTrigger />
+                    <Link href="/local" className="flex items-center gap-2">
+                      <Home className="h-5 w-5" />
+                      <span className="font-medium">{mangaTitle}</span>
+                    </Link>
+                    <span className="text-sm text-muted-foreground">{manga?.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="p-2 hover:bg-accent hover:text-accent-foreground"
+                      onClick={toggleChapterList}
+                    >
+                      <List className="h-6 w-6" />
+                      <span className="sr-only">Chapter List</span>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="p-2 hover:bg-accent hover:text-accent-foreground"
+                      onClick={toggleSettings}
+                    >
+                      <Settings className="h-6 w-6" />
+                      <span className="sr-only">Settings</span>
+                    </Button>
+                  </div>
+                </div>
+              </header>
+
+              {/* Main content */}
+              <main className="flex-1 overflow-y-auto ">
+                <div className="mx-auto px-4 py-8">
+                  {readingMode === "scroll" ? (
+                    // Continuous scroll mode
+                    <div className="mx-auto max-w-3xl">
+                      <div className="space-y-4">
+                        {manga?.pages.map((page, index) => (
+                          <div key={index} className="relative mx-auto" style={{ width: `${zoomLevel}%` }}>
+                            <Image
+                              src={page.image || "/placeholder.svg?height=1400&width=900"}
+                              alt={`Page ${index + 1}`}
+                              width={900}
+                              height={1400}
+                              className="w-full h-auto"
+                              priority={index <= 3}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    // Pagination mode
+                    <div className="mx-auto max-w-3xl flex items-center justify-center min-h-[calc(100vh-8rem)]">
+                      {manga?.pages && manga.pages.length > 0 && (
+                        <div className="relative mx-auto" style={{ width: `${zoomLevel}%` }}>
+                          <Image
+                            src={manga.pages[currentPage - 1]?.image || "/placeholder.svg?height=1400&width=900"}
+                            alt={`Page ${currentPage}`}
+                            width={900}
+                            height={1400}
+                            className="w-full h-auto"
+                            priority
+                          />
+
+                          {/* Page navigation buttons */}
+                          <div className="absolute inset-0 flex">
+                            <button
+                              className="w-1/2 h-full focus:outline-none"
+                              onClick={prevPage}
+                              disabled={currentPage === 1 && !manga.prevChapter}
+                            >
+                              <span className="sr-only">Previous page</span>
+                            </button>
+                            <button
+                              className="w-1/2 h-full focus:outline-none"
+                              onClick={nextPage}
+                              disabled={currentPage === manga.pages.length && !manga.nextChapter}
+                            >
+                              <span className="sr-only">Next page</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </main>
+
+              {/* Footer - only visible in pagination mode */}
+              {readingMode === "pagination" && (
+                <footer className="bg-[#2f2e2e] backdrop-blur supports-[backdrop-filter]:bg-[#2f2e2e]/60 z-10">
+                  <div className="mx-auto px-4 py-4">
+                    <div className="flex items-center justify-between">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={prevPage}
+                        disabled={currentPage === 1 && !manga?.prevChapter}
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                        <span className="sr-only">Previous page</span>
+                      </Button>
+
+                      <div className="text-center">
+                        <span className="text-sm font-medium">
+                          Page {currentPage} of {manga?.pages.length || 0}
+                        </span>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={nextPage}
+                        disabled={currentPage === manga?.pages.length && !manga?.nextChapter}
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                        <span className="sr-only">Next page</span>
+                      </Button>
+                    </div>
+                  </div>
+                </footer>
+              )}
+
+              {/* Chapter list sidebar */}
+              <div
+                className={cn(
+                  "fixed inset-y-0 right-0 z-50 w-80 border-l bg-[#1a1919] p-4 shadow-md transition-transform duration-300 ease-in-out",
+                  isChapterListOpen ? "translate-x-0" : "translate-x-full",
+                )}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Chapters</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
+                    onClick={toggleChapterList}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-[calc(100vh-8rem)] overflow-y-auto">
+                  {archive.map((item) => (
+                    <Button
+                      key={item.id}
+                      variant={item.id === Number.parseInt(manga?.id || "0") ? "default" : "ghost"}
+                      className="w-full justify-start hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => {
+                        window.location.href = `/local/${detail}/${item.id}`
+                      }}
+                    >
+                      {item.title}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Settings panel */}
+              <div
+                className={cn(
+                  "fixed right-0 top-16 z-50 w-80 rounded-md border bg-[#1a1919] p-4 shadow-md transition-opacity duration-300",
+                  isSettingsOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+                )}
+              >
+                <div className="mb-4">
+                  <p className="mb-2 text-sm font-medium">Reading Mode</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={readingMode === "scroll" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1 hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setReadingMode("scroll")}
+                    >
+                      Scroll
+                    </Button>
+                    <Button
+                      variant={readingMode === "pagination" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1 hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setReadingMode("pagination")}
+                    >
+                      Pages
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className="mb-2 text-sm font-medium">Zoom: {zoomLevel}%</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
+                    >
+                      -
+                    </Button>
+                    <div className="flex-1 h-2 bg-secondary rounded-full">
+                      <div
+                        className="h-full bg-primary rounded-full"
+                        style={{ width: `${((zoomLevel - 50) / 150) * 100}%` }}
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full hover:bg-accent hover:text-accent-foreground"
+                  onClick={toggleDarkMode}
+                >
+                  {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                  {darkMode ? "Light Mode" : "Dark Mode"}
+                </Button>
+              </div>
+
+              {/* Quick reading mode toggle button */}
+              <Button
+                variant="secondary"
+                size="icon"
+                className={cn(
+                  "fixed z-20 rounded-full shadow-lg transition-opacity duration-300 hover:bg-accent hover:text-accent-foreground",
+                  readingMode === "scroll" ? "bottom-4 right-4" : "bottom-20 right-4",
+                )}
+                onClick={toggleReadingMode}
+              >
+                {readingMode === "scroll" ? <BookOpen className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
+                <span className="sr-only">
+                  {readingMode === "scroll" ? "Switch to pagination" : "Switch to scroll"}
+                </span>
+              </Button>
+
+              {/* Chapter navigation buttons */}
+              <div className="fixed left-4 right-4 bottom-1/2 z-20 flex justify-between">
+                {manga?.prevChapter ? (
+                  <Button variant="secondary" size="sm" asChild>
+                    <Link href={`/local/${detail}/${manga.prevChapter}`}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Previous Chapter
+                    </Link>
+                  </Button>
+                ) : (
+                  <div></div>
+                )}
+
+                {manga?.nextChapter && (
+                  <Button variant="secondary" size="sm" asChild>
+                    <Link href={`/local/${detail}/${manga.nextChapter}`}>
+                      Next Chapter
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
+  )
+}
+
