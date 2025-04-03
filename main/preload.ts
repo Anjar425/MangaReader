@@ -5,11 +5,10 @@ interface IpcHandler {
 	on: (channel: string, callback: (...args: any[]) => void) => () => void
 	setLocalDir: () => Promise<{ success: boolean; localPort: string }>
 	getMangaList: () => Promise<any[]>
-	getMangaInfo: (dir: string) => Promise<any>
-	getArchivesInMangaFolder: (dir: string) => Promise<string[]>
-	getImagesFromArchive: (dir: string, id: number) => Promise<string[]>
-	getAllArchiveTitleById: (dir: string) => Promise<any>
-	getMaxId: (dir: string) => Promise<any>
+	getMangaDetails: (id: number) => Promise<any>
+	setMangaFavorited: (mangaId: number, isFavorited: boolean) => Promise<any>
+	getChapterDetails: (manga_id: number, chapter_index: number) => Promise<any>
+	getImagesFromArchive: (fullPath: string) => Promise<string[]>
 }
 
 const handler: IpcHandler = {
@@ -29,11 +28,10 @@ const handler: IpcHandler = {
 
 	// Local Manga List
 	getMangaList: () => ipcRenderer.invoke("get-manga-list"),
-	getMangaInfo: (dir: string) => ipcRenderer.invoke("get-manga-info", dir),
-	getArchivesInMangaFolder: (dir: string) => ipcRenderer.invoke("get-archive-chapter", dir),
-	getImagesFromArchive: (dir: string, id: number) => ipcRenderer.invoke("get-image-chapter", dir, id),
-	getAllArchiveTitleById: (dir: string) => ipcRenderer.invoke("get-all-archive-title", dir),
-	getMaxId: (dir: string) => ipcRenderer.invoke("get-max-id", dir),
+	getMangaDetails: (id: number) => ipcRenderer.invoke("get-manga-details", id),
+	setMangaFavorited: (mangaId: number, isFavorited: boolean) => ipcRenderer.invoke("set-manga-favorited", mangaId, isFavorited),
+	getChapterDetails: (manga_id: number, chapter_index: number) => ipcRenderer.invoke("get-chapter-details", manga_id, chapter_index),
+	getImagesFromArchive: (fullPath: string,) => ipcRenderer.invoke("get-image-chapter", fullPath),
 }
 
 // Expose protected methods that allow the renderer process to use

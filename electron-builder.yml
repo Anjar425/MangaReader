@@ -1,6 +1,6 @@
-appId: com.example.nextron
-productName: My Nextron App
-copyright: Copyright © 2018 Yoshihide Shiono
+appId: com.example.mangareader
+productName: MangaReader
+copyright: Copyright © 2025 Kyuru
 directories:
   output: dist
   buildResources: resources

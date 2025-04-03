@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { BookOpen, Calendar, ChevronDown, ChevronUp, Flag, Moon, Search, Share2, Star, Sun, User } from "lucide-react"
+import { BookOpen, ChevronDown, ChevronUp, Moon, Search, Star, Sun, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,13 +19,11 @@ import { useRouter } from "next/router"
 export default function MangaDetail() {
     const [darkMode, setDarkMode] = useState(true)
     const [expandedSummary, setExpandedSummary] = useState(false)
-    const [visibleChapters, setVisibleChapters] = useState(10)
     const [searchQuery, setSearchQuery] = useState("")
 
     const router = useRouter();
     const { detail } = router.query;
     const [manga, setManga] = useState(null);
-    const [archive, setArchive] = useState([]);
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
@@ -33,45 +31,37 @@ export default function MangaDetail() {
 
         const fetchMangaInfo = async () => {
             try {
-                const data = await window.ipc.getMangaInfo(detail);
+                const data = await window.ipc.getMangaDetails(detail);
                 if (data) {
                     setManga(data);
-                } else {
-                    setManga({ series: detail });
+                    setIsLoading(false)
                 }
             } catch (error) {
                 console.error("Error fetching manga info:", error);
-                setManga({ series: detail });
-            }
-        };
-
-        const fetchArchiveChapter = async () => {
-            try {
-                const archivedata = await window.ipc.getArchivesInMangaFolder(detail);
-                archivedata.sort((a: any, b: any) => {
-                    const numA = parseInt(a.archiveName.match(/\d+/)?.[0] || "0", 10);
-                    const numB = parseInt(b.archiveName.match(/\d+/)?.[0] || "0", 10);
-                    return numA - numB;
-                });
-                setArchive(archivedata);
-                setIsLoading(false)
-            } catch (error) {
-                console.error("Error fetching archive:", error);
             }
         };
 
         fetchMangaInfo();
-        fetchArchiveChapter();
-    }, [detail]);
+    }, [detail, manga]);
 
     const toggleDarkMode = () => setDarkMode(!darkMode)
     const toggleSummary = () => setExpandedSummary(!expandedSummary)
-    const loadMoreChapters = () => {
-        setVisibleChapters((prev) => Math.min(prev + 10, manga.chapters.length))
-    }
+
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value)
     }
+
+    const toggleFavorited = () => {
+        const newFavoritedStatus = !manga.manga_favorited;
+        
+        window.ipc.setMangaFavorited(detail, newFavoritedStatus)
+        // .then(() => {
+        //     window.location.reload();
+        // }).catch((err: any) => {
+        //     console.error("Gagal mengupdate favorit:", err);
+        // });
+    };
+    
 
     return (
         <div className="h-screen overflow-hidden" >
@@ -115,19 +105,19 @@ export default function MangaDetail() {
                                     <div
                                         className="absolute inset-0 bg-cover bg-center bg-no-repeat blur-md opacity-20"
                                         style={{
-                                            backgroundImage: `url("${manga.cover}")` ,
+                                            backgroundImage: `url("${manga.manga_cover}")`,
                                             transform: "scale(1.1)",
                                         }}
-                                    ></div> 
+                                    ></div>
                                     <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
 
                                     <div className="relative h-full">
-                                        <div className="grid h-full items-end gap-6 p-6 lg:grid-cols-[250px_1fr] lg:gap-12">
+                                        <div className="lg:grid flex flex-col h-full items-end gap-6 p-6 lg:grid-cols-[250px_1fr] lg:gap-12">
                                             {/* Cover Image */}
-                                            <div className="relative h-full w-[250px] overflow-hidden rounded-lg border shadow-xl">
+                                            <div className="relative h-full w-[250px] self-start overflow-hidden rounded-lg border shadow-xl">
                                                 <Image
-                                                    src={manga.cover || "/placeholder.svg"}
-                                                    alt={manga.series}
+                                                    src={manga.manga_cover || "/placeholder.svg"}
+                                                    alt={manga.manga_name}
                                                     fill
                                                     className="object-cover"
                                                     priority
@@ -137,7 +127,7 @@ export default function MangaDetail() {
                                             {/* Title and Info */}
                                             <div className="flex flex-col justify-end space-y-4">
                                                 <div>
-                                                    <h1 className="text-4xl font-bold tracking-tight text-white">{manga.series}</h1>
+                                                    <h1 className="text-4xl font-bold tracking-tight text-white">{manga.manga_name}</h1>
                                                     {/* <p className="mt-2 text-xl text-muted-foreground">{manga.alternativeTitle}</p> */}
                                                     <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
                                                         {/* <div className="flex items-center gap-1">
@@ -151,7 +141,7 @@ export default function MangaDetail() {
                                                         <div className="flex items-center gap-1">
                                                             <User className="h-4 w-4" />
                                                             <span>
-                                                                {manga.writer}, {manga.penciller}
+                                                                {manga.manga_writer}, {manga.manga_penciller}
                                                             </span>
                                                         </div>
                                                         {/* <div className="flex items-center gap-1">
@@ -163,19 +153,19 @@ export default function MangaDetail() {
                                                     </div>
                                                 </div>
 
-                                                {/* Action Buttons
+                                                {/* Action Buttons */}
                                                 <div className="flex gap-2">
-                                                    <Button className="w-40">Add To Library</Button>
-                                                    <Button variant="secondary" size="icon">
-                                                        <BookOpen className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button variant="secondary" size="icon">
+                                                    <Button className={`w-40 ${manga.manga_favorited == false ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"} `} onClick={toggleFavorited}><Star className="h-2 w-2" />{manga.manga_favorited == 0 ? "Add To Favorited" : "Remove Favorited"}</Button>
+                                                    {/* <Button variant="secondary" size="icon">
+                                                        
+                                                    </Button> */}
+                                                    {/* <Button variant="secondary" size="icon">
                                                         <Flag className="h-4 w-4" />
                                                     </Button>
                                                     <Button variant="secondary" size="icon">
                                                         <Share2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div> */}
+                                                    </Button> */}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -185,8 +175,8 @@ export default function MangaDetail() {
                                 <div className="py-8">
                                     {/* Genres */}
                                     <div className="mb-8 flex flex-wrap gap-2">
-                                        {manga.genre && manga.genre.split(',').map((genre) => (
-                                            <Badge key={genre} className="bg-sky-800 px-2 py-1" variant="secondary">
+                                        {manga.genres && manga.genres.map((genre, index) => (
+                                            <Badge key={index} className="bg-sky-800 px-2 py-1" variant="secondary">
                                                 {genre}
                                             </Badge>
                                         ))}
@@ -202,7 +192,7 @@ export default function MangaDetail() {
                                                 </Button>
                                             </div>
                                             <p className={cn("mt-2 text-muted-foreground", expandedSummary ? "" : "line-clamp-3")}>
-                                                {manga.summary}
+                                                {manga.manga_summary}
                                             </p>
                                         </div>
                                     </Card>
@@ -211,23 +201,23 @@ export default function MangaDetail() {
                                     <div className="">
                                         <div className="mb-4 flex items-center justify-between">
                                             <h2 className="text-xl font-semibold">Chapters</h2>
-                                            <span className="text-sm text-muted-foreground">{archive.length > 0 ? `${archive.length} Chapters` : "No Chapters Available"}</span>
+                                            <span className="text-sm text-muted-foreground">{manga.chapters.length > 0 ? `${manga.chapters.length} Chapters` : "No Chapters Available"}</span>
                                         </div>
                                         <ScrollArea className="h-[500px]">
                                             <div className="space-y-4">
-                                                {archive.length > 0 ? (
-                                                    archive.map((item, index) => (
-                                                        <Card key={index} className=" bg-[#2f2e2e] hover:bg-[#454444]">
+                                                {manga.chapters.length > 0 ? (
+                                                    manga.chapters.map((item) => (
+                                                        <Card key={item.chapter_index} className=" bg-[#2f2e2e] hover:bg-[#454444] py-0">
                                                             <Link
-                                                                href={`/local/${detail}/${index}`}
-                                                                className="block px-4 transition-colors hover:bg-muted/50"
-                                                                prefetch = {false}
+                                                                href={`/manga/${detail}/${item.chapter_index}`}
+                                                                className="block px-4 transition-colors hover:bg-muted/50 py-6"
+                                                                prefetch={false}
                                                             >
                                                                 <div className="flex justify-between">
                                                                     <div>
-                                                                        <h3 className="font-medium">{item.archiveName}</h3>
+                                                                        <h3 className="font-medium">{item.chapter_name}</h3>
                                                                         <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                                                                            <span>{item.pageSize} pages</span>
+                                                                            <span>{item.chapter_size} pages</span>
                                                                         </div>
                                                                     </div>
                                                                     {/* <div className="flex items-center text-sm text-muted-foreground">
@@ -241,18 +231,13 @@ export default function MangaDetail() {
                                                     <p className="text-gray-400">No chapters available</p>
 
                                                 )}
-                                                {/* {visibleChapters < manga.chapters.length && (
-                                                    <Button variant="outline" className="w-full" onClick={loadMoreChapters}>
-                                                        Load More
-                                                    </Button>
-                                                )} */}
                                             </div>
                                         </ScrollArea>
                                     </div>
                                 </div>
-                                </>
+                            </>
                         )}
-                            
+
                     </main>
 
                     <footer className="border-t py-6">
