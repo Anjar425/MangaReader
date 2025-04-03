@@ -11,18 +11,28 @@ import { getChapterDetails } from "./local/get-chapter-details"
 
 const expressApp = express()
 const PORT = 3001
-let localPort = "F:\\Manga\\local"   
+let localPort = "E:\\Manga\\local" 
+let staticMiddleware = null; // Untuk menyimpan middleware statis
 const isProd: boolean = process.env.NODE_ENV === "production"
 
 const dbPath = isProd
-  ? path.join(process.resourcesPath, 'manga.db') // Saat production, simpan di folder aplikasi
-  : path.join(app.getPath('userData'), 'manga.db'); // Saat development, tetap di userData
+	? path.join(process.resourcesPath, 'manga.db') // Saat production, simpan di folder aplikasi
+	: path.join(app.getPath('userData'), 'manga.db'); // Saat development, tetap di userData
 const db = new Database(dbPath);
 
 const setLocalPort = (newPath: string): void => {
 	localPort = newPath
-	// console.log(`Local port set to: ${localPort}`);
+    updateStaticMiddleware(localPort);
 }
+
+const updateStaticMiddleware = (newPath) => {
+    if (staticMiddleware) {
+        expressApp._router.stack = expressApp._router.stack.filter(layer => layer.handle !== staticMiddleware);
+    }
+    staticMiddleware = express.static(newPath);
+    expressApp.use("/manga", staticMiddleware);
+    // console.log(`Serving static files from: ${newPath}`);
+};
 
 
 if (isProd) {
@@ -32,9 +42,7 @@ if (isProd) {
 }
 ; (async () => {
 	try {
-		await app.whenReady().then(async () => {
-			await scanMangaDirectory(dbPath, localPort);
-		});
+		await app.whenReady()
 	} catch (error) {
 
 	}
@@ -53,6 +61,7 @@ if (isProd) {
 		await mainWindow.loadURL(`http://localhost:${port}/`)
 		mainWindow.webContents.openDevTools()
 	}
+	await scanMangaDirectory(dbPath, localPort);
 })()
 
 app.on("window-all-closed", () => {
@@ -75,7 +84,9 @@ ipcMain.handle("set-local-port", async (event: IpcMainInvokeEvent): Promise<Loca
 
 	if (!result.canceled && result.filePaths.length > 0) {
 		setLocalPort(result.filePaths[0]) // Set path yang dipilih ke localPort
-		return { success: true, localPort }
+		await scanMangaDirectory(dbPath, localPort);
+		console.log(localPort)
+		return { success: true, localPort }  
 	}
 
 	return { success: false, localPort }
@@ -83,30 +94,41 @@ ipcMain.handle("set-local-port", async (event: IpcMainInvokeEvent): Promise<Loca
 
 ipcMain.handle("get-manga-list", async (event: IpcMainInvokeEvent) => {
 	const stmt = db.prepare(`
-		SELECT 
-			M.ID, 
-			M.Name, 
-			M.Favorited, 
-			M.Cover, 
-			M.Penciller,
-			M.Writer,
-			COALESCE(G.GroupedGenres, 'Unknown') AS Genre,
-			COALESCE(C.TotalChapters, 0) AS TotalChapters
-		FROM MANGA M
-		LEFT JOIN (
-			SELECT MG.ID_Manga, GROUP_CONCAT(G.Name, ', ') AS GroupedGenres
-			FROM MANGA_GENRE MG
-			JOIN GENRE G ON MG.ID_Genre = G.ID
-			GROUP BY MG.ID_Manga
-		) G ON M.ID = G.ID_Manga
-		LEFT JOIN (
-			SELECT ID_Manga, COUNT(*) AS TotalChapters
-			FROM CHAPTER
-			GROUP BY ID_Manga
-		) C ON M.ID = C.ID_Manga
-	`);
-	
-	const mangas = stmt.all().map(manga => ({
+        SELECT 
+            M.ID, 
+            M.Name, 
+            M.Favorited, 
+            M.Cover, 
+            M.Penciller,
+            M.Writer,
+            COALESCE(G.GroupedGenres, 'Unknown') AS Genre,
+            COALESCE(C.TotalChapters, 0) AS TotalChapters
+        FROM MANGA M
+        JOIN BASEFOLDER B ON M.ID_BaseFolder = B.ID
+        LEFT JOIN (
+            SELECT MG.ID_Manga, GROUP_CONCAT(G.Name, ', ') AS GroupedGenres
+            FROM MANGA_GENRE MG
+            JOIN GENRE G ON MG.ID_Genre = G.ID
+            GROUP BY MG.ID_Manga
+        ) G ON M.ID = G.ID_Manga
+        LEFT JOIN (
+            SELECT ID_Manga, COUNT(*) AS TotalChapters
+            FROM CHAPTER
+            GROUP BY ID_Manga
+        ) C ON M.ID = C.ID_Manga
+        WHERE B.Path = ?
+    `);
+
+	const mangas = (stmt.all(localPort) as {
+		ID: number;
+		Name: string;
+		Favorited: boolean;
+		Cover: string;
+		Penciller: string;
+		Writer: string;
+		Genre: string;
+		TotalChapters: number;
+	}[]).map(manga => ({
 		ID: manga.ID,
 		Name: manga.Name,
 		Favorited: manga.Favorited,
@@ -116,7 +138,6 @@ ipcMain.handle("get-manga-list", async (event: IpcMainInvokeEvent) => {
 		Genre: manga.Genre === 'Unknown' ? ['Unknown'] : manga.Genre.split(', '),
 		TotalChapters: manga.TotalChapters
 	}));
-	
 	return mangas;
 });
 

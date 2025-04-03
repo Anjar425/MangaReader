@@ -1,13 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
-	ArrowLeft,
-	ArrowRight,
-	BookOpen,
 	ChevronLeft,
 	ChevronRight,
 	Home,
@@ -22,6 +19,8 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/router"
+import { Slider } from "@/components/ui/slider"
+import MangaNavigation from "@/components/navigation-bar"
 
 interface Page {
 	image: string
@@ -47,6 +46,8 @@ interface Manga {
 type ReadingMode = "scroll" | "pagination"
 
 export default function ChapterReader() {
+	const contentRef = useRef<HTMLDivElement>(null);
+	const currentPageRef = useRef(1);
 	const [darkMode, setDarkMode] = useState(true)
 	const [readingMode, setReadingMode] = useState<ReadingMode>("scroll")
 	const [currentPage, setCurrentPage] = useState(1)
@@ -119,6 +120,17 @@ export default function ChapterReader() {
 	// Toggle dark mode
 	const toggleDarkMode = () => setDarkMode(!darkMode)
 
+	const handlePageChange = (page: number) => {
+		if (!contentRef.current) return;
+	
+		currentPageRef.current = page;
+		setCurrentPage(page);
+	
+		const scrollHeight = contentRef.current.scrollHeight - contentRef.current.clientHeight;
+		const scrollPercentage = (page - 1) / (manga.pages.length - 1);
+
+	  };
+
 	// Toggle reading mode
 	const toggleReadingMode = () => {
 		setReadingMode((prev) => (prev === "scroll" ? "pagination" : "scroll"))
@@ -133,6 +145,7 @@ export default function ChapterReader() {
 		} else if (manga.nextChapter) {
 			// Navigate to next chapter handled by Link component
 			setCurrentPage(1)
+			nextChapter()
 		}
 	}
 
@@ -145,6 +158,22 @@ export default function ChapterReader() {
 		} else if (manga.prevChapter) {
 			// Navigate to previous chapter handled by Link component
 			setCurrentPage(manga?.pages.length || 1)
+		}
+	}
+
+	const nextChapter = () => {
+		if (!manga) return
+
+		if (manga.nextChapter){
+			router.push(`/manga/${detail}/${manga.chapter_index + 1}`)
+		}
+	}
+
+	const prevChapter = () => {
+		if (!manga) return
+
+		if (manga.prevChapter){
+			router.push(`/manga/${detail}/${manga.chapter_index - 1}`)
 		}
 	}
 
@@ -256,8 +285,8 @@ export default function ChapterReader() {
 							</header>
 
 							{/* Main content */}
-							<main className="flex-1 overflow-y-auto">
-								<div className="mx-auto px-4 py-8 flex flex-col justify-center items-center">
+							<main ref={contentRef} className="flex-1 overflow-y-auto	">
+								<div  className={`mx-auto flex items-center justify-center min-h-[calc(100vh-8rem)`}>
 									{readingMode === "scroll" ? (
 										// Continuous scroll mode
 										<div style={{ width: `${zoomLevel}%` }}>
@@ -278,9 +307,9 @@ export default function ChapterReader() {
 										</div>
 									) : (
 										// Pagination mode
-										<div className="mx-auto max-w-3xl flex items-center justify-center min-h-[calc(100vh-8rem)]">
+										<div className="mx-auto flex items-center justify-center min-h-[calc(100vh-8rem)]">
 											{manga?.pages && manga.pages.length > 0 && (
-												<div className="relative mx-auto" style={{ width: `${zoomLevel}%` }}>
+												<div ref={contentRef} className="relative mx-auto" style={{ width: `${zoomLevel}%` }}>
 													<Image
 														src={manga.pages[currentPage - 1]?.image || "/placeholder.svg?height=1400&width=900"}
 														alt={`Page ${currentPage}`}
@@ -314,7 +343,7 @@ export default function ChapterReader() {
 								</div>
 							</main>
 
-							{/* Footer - only visible in pagination mode */}
+							{/* Footer - only visible in pagination mode
 							{readingMode === "pagination" && (
 								<footer className="bg-[#2f2e2e] backdrop-blur supports-[backdrop-filter]:bg-[#2f2e2e]/60 z-10">
 									<div className="mx-auto px-4 py-4">
@@ -349,7 +378,7 @@ export default function ChapterReader() {
 										</div>
 									</div>
 								</footer>
-							)}
+							)} */}
 
 							{/* Chapter list sidebar */}
 							<div
@@ -421,22 +450,24 @@ export default function ChapterReader() {
 										<Button
 											variant="outline"
 											size="icon"
-											className="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
-											onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
+											className="h-8 w-8 hover:bg-accent hover:text-accent-foreground hover:ring-2 flex justify-center items-center"
+											onClick={() => setZoomLevel((prev) => Math.max(50, prev - 10))}
 										>
 											-
 										</Button>
-										<div className="flex-1 h-2 bg-secondary rounded-full">
-											<div
-												className="h-full bg-primary rounded-full"
-												style={{ width: `${((zoomLevel - 50) / 150) * 100}%` }}
-											/>
-										</div>
+										<Slider
+											value={[zoomLevel]}
+											max={100}
+											min={50}
+											step={1}
+											onValueChange={(value) => setZoomLevel(value[0])}
+											className="w-full"
+										/>
 										<Button
 											variant="outline"
 											size="icon"
-											className="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
-											onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))}
+											className="h-8 w-8 hover:bg-accent hover:text-accent-foreground hover:ring-2 flex justify-center items-center"
+											onClick={() => setZoomLevel((prev) => Math.min(200, prev + 10))}
 										>
 											+
 										</Button>
@@ -472,27 +503,17 @@ export default function ChapterReader() {
 
 							{/* Chapter navigation buttons */}
 							<div className="fixed left-4 right-4 bottom-1/2 z-20 flex justify-between">
-								{manga?.prevChapter ? (
-									<Button className="hover:bg-sky-800/60" variant="secondary" size="sm" asChild>
-										<Link href={`/manga/${detail}/${manga.chapter_index - 1}`} onClick={scrollToTop}>
-											<ArrowLeft className="mr-2 h-4 w-4" />
-											Previous Chapter
-										</Link>
-									</Button>
-								) : (
-									<div></div>
-								)}
-
-								{manga.nextChapter ? manga?.nextChapter && (
-									<Button className="hover:bg-sky-800/60" variant="secondary" size="sm" asChild>
-										<Link href={`/manga/${detail}/${manga.chapter_index + 1}`} onClick={scrollToTop} prefetch={true}>
-											Next Chapter
-											<ArrowRight className="ml-2 h-4 w-4" />
-										</Link>
-									</Button>
-								) : (
-									<div></div>
-								)}
+								<MangaNavigation
+									totalPages={manga.pages.length}
+									currentPage={currentPage}
+									currentChapter={manga.chapter_index}
+									chapterTitle={manga.chapter_name}
+									totalChapters={manga.all_chapter}
+									onPageChange={handlePageChange}
+									onPreviousChapter={prevChapter}
+									onNextChapter={nextChapter}
+									contentRef={contentRef}
+								/>
 							</div>
 						</>
 					)}

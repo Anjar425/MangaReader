@@ -55,11 +55,6 @@ export default function MangaDetail() {
         const newFavoritedStatus = !manga.manga_favorited;
         
         window.ipc.setMangaFavorited(detail, newFavoritedStatus)
-        // .then(() => {
-        //     window.location.reload();
-        // }).catch((err: any) => {
-        //     console.error("Gagal mengupdate favorit:", err);
-        // });
     };
     
 

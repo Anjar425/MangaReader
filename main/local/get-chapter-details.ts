@@ -10,17 +10,17 @@ function getChapterDetails(dbPath: string, mangaId: number, chapterIndex: number
             GROUP BY ID_Manga
         )
         SELECT 
-            c."Index" AS chapter_index,
+            c.Chapter_Index AS chapter_index,
             m.Name AS manga_name,
             c.Name AS chapter_name,
             c.File_Path AS file_path,
             t.all_chapter,
-            (c."Index" < t.all_chapter) AS nextChapter,
-            (c."Index" > 1) AS prevChapter
+            (c.Chapter_Index < t.all_chapter) AS nextChapter,
+            (c.Chapter_Index > 1) AS prevChapter
         FROM CHAPTER c
         JOIN MANGA m ON c.ID_Manga = m.ID
         JOIN TotalChapters t ON c.ID_Manga = t.ID_Manga
-        WHERE c.ID_Manga = ? AND c."Index" = ?;
+        WHERE c.ID_Manga = ? AND c.Chapter_Index = ?;
     `);
 
     const chapterDetails = query.get(mangaId, chapterIndex);
@@ -28,18 +28,21 @@ function getChapterDetails(dbPath: string, mangaId: number, chapterIndex: number
     // Query untuk mendapatkan daftar semua chapter dalam manga
     const allChaptersQuery = db.prepare(`
         SELECT 
-            "Index" AS chapter_index, 
+            Chapter_Index AS chapter_index, 
             Name AS chapter_name
         FROM CHAPTER
         WHERE ID_Manga = ?
-        ORDER BY "Index" ASC;
+        ORDER BY Chapter_Index ASC;
     `);
 
     const allChapters = allChaptersQuery.all(mangaId);
 
     db.close();
 
-    return { ...chapterDetails, all_chapters: allChapters };
+    return {
+        ...(typeof chapterDetails === "object" && chapterDetails !== null ? chapterDetails : {}),
+        all_chapters: allChapters
+    };
 }
 
 export { getChapterDetails };

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import AdmZip from "adm-zip";
 
-const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", "jpe"];
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".jpe", ".avif"];
 
 const naturalSort = (a: any, b: any) => {
 	return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });

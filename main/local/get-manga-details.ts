@@ -27,18 +27,18 @@ const getMangaDetails = (dbPath: string, mangaId: number) => {
         SELECT 
             Name AS chapter_name, 
             File_Path AS chapter_path,
-            \`Index\` AS chapter_index,
+            Chapter_Index AS chapter_index,
             Page_Size as chapter_size
         FROM CHAPTER
         WHERE ID_Manga = ?;
     `);
 
     const manga = mangaQuery.get(mangaId);
-    const genres = genresQuery.all(mangaId).map(row => row.genre_name);
+    const genres = (genresQuery.all(mangaId) as { genre_name: string }[]).map(row => row.genre_name);
     const chapters = chaptersQuery.all(mangaId);
 
     return {
-        ...manga,
+        ...(typeof manga === "object" && manga !== null ? manga : {}),
         genres,
         chapters
     };
