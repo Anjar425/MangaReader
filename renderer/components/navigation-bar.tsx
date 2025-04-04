@@ -1,26 +1,12 @@
-"use client"
-
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { MangaNavigationProps } from "@/interfaces/types"
 
-interface MangaNavigationProps {
-    totalPages: number
-    currentPage?: number
-    currentChapter?: number
-    chapterTitle?: string
-    totalChapters?: number
-    onPageChange?: (page: number) => void
-    onPreviousChapter?: () => void
-    onNextChapter?: () => void
-    contentRef?: React.RefObject<HTMLElement>
-    className?: string
-}
-
-export default function MangaNavigation({
+const MangaNavigation = ({
     totalPages,
     currentPage,
     currentChapter,
@@ -31,29 +17,28 @@ export default function MangaNavigation({
     onNextChapter,
     contentRef,
     className,
-}: MangaNavigationProps) {
+}: MangaNavigationProps) => {
     const [page, setPage] = useState(currentPage)
     const [isDragging, setIsDragging] = useState(false)
     const trackRef = useRef<HTMLDivElement>(null)
     const isManuallyChangingRef = useRef(false)
 
     const [isVisible, setIsVisible] = useState(false);
-    let timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
-          const { innerWidth, innerHeight } = window;
-          const isMouseAtBottom = event.clientY > innerHeight * 0.7;
-          const isMouseAtCenter = event.clientX > innerWidth * 0.3 && event.clientX < innerWidth * 0.8;
-    
-          setIsVisible(isMouseAtBottom && isMouseAtCenter);
+            const { innerWidth, innerHeight } = window;
+            const isMouseAtBottom = event.clientY > innerHeight * 0.7;
+            const isMouseAtCenter = event.clientX > innerWidth * 0.3 && event.clientX < innerWidth * 0.8;
+
+            setIsVisible(isMouseAtBottom && isMouseAtCenter);
         };
-    
+
         document.addEventListener("mousemove", handleMouseMove);
         return () => {
-          document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mousemove", handleMouseMove);
         };
-      }, []);
+    }, []);
 
     // Update internal state when props change
     useEffect(() => {
@@ -285,3 +270,4 @@ export default function MangaNavigation({
     )
 }
 
+export default MangaNavigation

@@ -1,4 +1,4 @@
-import { Book, Calendar, Home, Inbox, Search, Settings, Star, User } from "lucide-react"
+import { Book, Home, Star, User } from "lucide-react"
 import {
 	Sidebar,
 	SidebarContent,
@@ -15,7 +15,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 
 
-export function AppSidebar() {
+const AppSidebar = () => {
 	const router = useRouter();
 	const currentPath = router.pathname;
 
@@ -29,10 +29,10 @@ export function AppSidebar() {
 	}));
 
 	return (
-		<Sidebar variant="floating" >
+		<Sidebar variant="floating">
 			<SidebarHeader className="pb-2">
 				<div className="flex items-center gap-2 px-4 py-2">
-					<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+					<div className="flex h-8 w-8 items-center justify-center rounded-md">
 						<User className="h-4 w-4" />
 					</div>
 					<div>
@@ -92,3 +92,4 @@ export function AppSidebar() {
 	)
 }
 
+export default AppSidebar

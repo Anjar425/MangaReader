@@ -6,12 +6,12 @@ const getMangaDetails = (dbPath: string, mangaId: number) => {
 
     const mangaQuery = db.prepare(`
         SELECT 
-            MANGA.Name AS manga_name,
-            MANGA.Cover AS manga_cover,
-            MANGA.Penciller AS manga_penciller,
-            MANGA.Writer AS manga_writer,
-            MANGA.Summary AS manga_summary,
-            MANGA.Favorited As manga_favorited
+            MANGA.Name AS Name,
+            MANGA.Cover AS Cover,
+            MANGA.Penciller AS Penciller,
+            MANGA.Writer AS Writer,
+            MANGA.Summary AS Summary,
+            MANGA.Favorited As Favorited
         FROM MANGA
         WHERE MANGA.ID = ?;
     `);
@@ -25,10 +25,10 @@ const getMangaDetails = (dbPath: string, mangaId: number) => {
 
     const chaptersQuery = db.prepare(`
         SELECT 
-            Name AS chapter_name, 
-            File_Path AS chapter_path,
-            Chapter_Index AS chapter_index,
-            Page_Size as chapter_size
+            Chapter_Index AS "Index",
+            Name AS Name, 
+            File_Path AS Path,
+            Page_Size as Size
         FROM CHAPTER
         WHERE ID_Manga = ?;
     `);
@@ -39,8 +39,8 @@ const getMangaDetails = (dbPath: string, mangaId: number) => {
 
     return {
         ...(typeof manga === "object" && manga !== null ? manga : {}),
-        genres,
-        chapters
+        Genres: genres,
+        ChapterList: chapters
     };
 };
 

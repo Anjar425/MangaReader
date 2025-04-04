@@ -1,8 +1,7 @@
-"use client"
+import { Manga } from "@/interfaces/types"
+import { useState, useEffect, Dispatch, SetStateAction } from "react"
 
-import { useState, useEffect } from "react"
-
-export function useGenreFilter(mangaList, setFilteredManga, searchQuery) {
+const useGenreFilter = (mangaList: Manga[], setFilteredManga: Dispatch<SetStateAction<Manga[]>>, searchQuery: string) => {
 	const [allGenres, setAllGenres] = useState<string[]>([])
 	const [selectedGenres, setSelectedGenres] = useState<string[]>([])
 
@@ -47,3 +46,4 @@ export function useGenreFilter(mangaList, setFilteredManga, searchQuery) {
 	}
 }
 
+export { useGenreFilter }

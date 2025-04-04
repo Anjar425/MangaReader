@@ -192,7 +192,6 @@ const scanMangaDirectory = async (dbPath: string, MANGA_DIR: string) => {
     }
 
     db.close();
-    console.log('Scan manga selesai!');
     } catch (error) {
         console.log(error)
     }

@@ -1,28 +1,28 @@
-"use client"
+import { Manga } from "@/interfaces/types";
+import { Dispatch, SetStateAction, useEffect, useState } from "react"
 
-import { useEffect, useState } from "react"
-
-export function useSessionStorage(
+const useSessionStorage = (
+    mangaList: Manga[],
     searchQuery: string,
     selectedGenres: string[],
     currentPage: number,
     itemsPerPage: number,
-    setSearchQuery: (query: string) => void,
-    setSelectedGenres: (genres: string[]) => void,
-    setItemsPerPage: (count: number) => void,
-    setCurrentPage: (page: number) => void,
-    setIsLoading: (isLoading: boolean) => void
-) {
+    setSearchQuery: Dispatch<SetStateAction<string>>,
+    setSelectedGenres: Dispatch<SetStateAction<string[]>>,
+    setItemsPerPage: Dispatch<SetStateAction<number>>,
+    setCurrentPage: Dispatch<SetStateAction<number>>,
+    setIsLoading: Dispatch<SetStateAction<boolean>>
+) => {
     const sessionData: {
         key: string;
         setter: (value: any) => void;
         parser: (value: string | null) => any;
     }[] = [
-        { key: "searchQuery", setter: setSearchQuery, parser: (v) => v || "" },
-        { key: "selectedGenres", setter: setSelectedGenres, parser: (v) => v ? JSON.parse(v) : [] },
-        { key: "itemsPerPage", setter: setItemsPerPage, parser: (v) => Number.parseInt(v || "20", 10) },
-        { key: "currentPage", setter: setCurrentPage, parser: (v) => Number.parseInt(v || "1", 10) },
-    ];    
+            { key: "searchQuery", setter: setSearchQuery, parser: (v) => v || "" },
+            { key: "selectedGenres", setter: setSelectedGenres, parser: (v) => v ? JSON.parse(v) : [] },
+            { key: "itemsPerPage", setter: setItemsPerPage, parser: (v) => Number.parseInt(v || "20", 10) },
+            { key: "currentPage", setter: setCurrentPage, parser: (v) => Number.parseInt(v || "1", 10) },
+        ];
 
     useEffect(() => {
         if (typeof window === "undefined") return
@@ -31,9 +31,9 @@ export function useSessionStorage(
             const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
             for (const { key, setter, parser } of sessionData) {
+                setIsLoading(true)
                 const value = sessionStorage.getItem(key);
                 setter(parser(value));
-                await delay(1);
             }
 
             setIsLoading(false);
@@ -49,7 +49,7 @@ export function useSessionStorage(
             }
 
             // Clean up session storage
-            await delay(1000)
+            await delay(100)
             sessionStorage.removeItem("itemsPerPage")
             sessionStorage.removeItem("currentPage")
             sessionStorage.removeItem("scrollLocation")
@@ -57,8 +57,11 @@ export function useSessionStorage(
             sessionStorage.removeItem("searchQuery")
         }
 
-        handleGetLastLocation()
-    }, [])
+        if (mangaList.length != 0) {
+            handleGetLastLocation()
+        }
+
+    }, [mangaList])
 
     // Save current state to session storage
     const saveLocation = () => {
@@ -77,3 +80,4 @@ export function useSessionStorage(
     return { saveLocation }
 }
 
+export { useSessionStorage }
