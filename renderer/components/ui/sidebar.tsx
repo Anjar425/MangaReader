@@ -168,7 +168,7 @@ function Sidebar({
       <div
         data-slot="sidebar"
         className={cn(
-          "bg-[#2f2e2e] text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
+          "bg-background-2 text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
           className
         )}
         {...props}
@@ -185,7 +185,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-[#2f2e2e] text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="bg-background-2 text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -239,7 +239,7 @@ function Sidebar({
       >
         <div
           data-sidebar="sidebar"
-          className="bg-[#2f2e2e] supports-[backdrop-filter]:bg-[#2f2e2e]/60 group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="bg-background-2 supports-[backdrop-filter]:bg-background-2/60 group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
         >
           {children}
         </div>
